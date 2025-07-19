@@ -1,0 +1,13 @@
+*.user*
+*.autosave
+.builds
+build*
+.cache
+
+.build
+build
+.vscode
+.venv
+
+cmake-kits.json
+
