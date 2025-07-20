@@ -1,27 +1,47 @@
-#include <linux/init.h>   /* Needed for the macros */
-#include <linux/kernel.h> /* Needed for KERN_INFO */
-#include <linux/module.h> /* Needed by all modules */
+#include <linux/init.h>
+#include <linux/module.h>
+#include <linux/usb.h>
 
-///< The license type -- this affects runtime behavior
 MODULE_LICENSE("GPL");
-
-///< The author -- visible when you use modinfo
-MODULE_AUTHOR("Bob");
-
-///< The description -- see modinfo
-MODULE_DESCRIPTION("A simple Hello world LKM!");
-
-///< The version of the module
+MODULE_AUTHOR("noname");
+MODULE_DESCRIPTION("USB connect/disconnect logger");
 MODULE_VERSION("0.1");
 
-static int __init hello_start(void) {
-  printk(KERN_INFO "Loading hello module...\n");
-  printk(KERN_INFO "Hello world\n");
+static int usb_notifier(struct notifier_block *nb, unsigned long action,
+                        void *data) {
+  struct usb_device *udev = data;
+
+  switch (action) {
+  case USB_DEVICE_ADD:
+    printk(KERN_INFO "[usb_monitor] USB device added: %04x:%04x\n",
+           le16_to_cpu(udev->descriptor.idVendor),
+           le16_to_cpu(udev->descriptor.idProduct));
+    break;
+
+  case USB_DEVICE_REMOVE:
+    printk(KERN_INFO "[usb_monitor] USB device removed: %04x:%04x\n",
+           le16_to_cpu(udev->descriptor.idVendor),
+           le16_to_cpu(udev->descriptor.idProduct));
+    break;
+  }
+
+  return NOTIFY_OK;
+}
+
+static struct notifier_block usb_nb = {
+    .notifier_call = usb_notifier,
+};
+
+static int __init usb_logger_init(void) {
+  printk(KERN_INFO "usb_monitor: loading...\n");
+  usb_register_notify(&usb_nb);
   return 0;
 }
 
-static void __exit hello_end(void) { printk(KERN_INFO "Goodbye Mr.\n"); }
+static void __exit usb_logger_exit(void) {
+  printk(KERN_INFO "usb_monitor: unloading...\n");
+  usb_unregister_notify(&usb_nb);
+}
 
-module_init(hello_start);
-
-module_exit(hello_end);
+module_init(usb_logger_init);
+module_exit(usb_logger_exit);
